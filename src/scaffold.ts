@@ -1,3 +1,4 @@
+import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import type { ScaffoldOptions, TemplateContext, FileMap } from "./types.js";
@@ -10,12 +11,42 @@ const TEMPLATES: Record<string, TemplateFn> = {
   cmake: cmakeTemplate,
 };
 
+// ─── Runtime default resolvers ───────────────────────────────────────────────
+
+/**
+ * Resolves the author name from (in priority order):
+ *  1. The value provided by the caller
+ *  2. `git config user.name`
+ *  3. The USER / USERNAME / LOGNAME environment variable
+ */
+function resolveAuthorName(provided: string): string {
+  if (provided) return provided;
+  const git = spawnSync("git", ["config", "user.name"], { encoding: "utf8" });
+  if (git.status === 0 && git.stdout.trim()) return git.stdout.trim();
+  return process.env["USER"] ?? process.env["USERNAME"] ?? process.env["LOGNAME"] ?? "";
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 export async function scaffoldProject(opts: ScaffoldOptions): Promise<string> {
   let { name } = opts;
-  const { displayName, description, outputDir, template, organization, authorName, authorEmail } =
-    opts;
+  const {
+    displayName,
+    description,
+    outputDir,
+    template,
+    organization,
+    authorEmail,
+    license,
+    openSource,
+    chumCategories,
+    packageIconUrl,
+    donationUrl,
+  } = opts;
+
+  // Resolve optional fields that can be auto-detected from the environment
+  const authorName = resolveAuthorName(opts.authorName);
+  const repoUrl = opts.repoUrl;
 
   if (!name.startsWith("harbour-") && !name.startsWith("sailfish-")) {
     name = `harbour-${name}`;
@@ -35,6 +66,12 @@ export async function scaffoldProject(opts: ScaffoldOptions): Promise<string> {
     organization,
     authorName,
     authorEmail,
+    license,
+    openSource,
+    repoUrl,
+    chumCategories,
+    packageIconUrl,
+    donationUrl,
     year: new Date().getFullYear(),
     nameCapital: toPascalCase(name.replace(/^harbour-/, "")),
   };
@@ -409,26 +446,104 @@ file(WRITE "\${CMAKE_BINARY_DIR}/QtCreatorDeployment.txt"
 `;
 }
 
+// ─── Chum metadata block ─────────────────────────────────────────────────────
+
+/**
+ * Generates the SailfishOS:Chum metadata paragraph that must be the last
+ * contiguous paragraph inside the %%description section of the RPM spec.
+ *
+ * Rules (from https://github.com/sailfishos-chum/main/blob/main/Metadata.md):
+ *  - The %if … %endif block must contain NO empty or comment lines.
+ *  - It must be the last paragraph of %%description.
+ */
+function chumBlock(ctx: TemplateContext): string {
+  const lines: string[] = [
+    "# SailfishOS:Chum metadata — https://github.com/sailfishos-chum/main/blob/main/Metadata.md",
+    "%if 0%{?_chum}",
+    `Title: ${ctx.displayName}`,
+    "Type: desktop-application",
+  ];
+
+  if (ctx.authorName) {
+    lines.push(`DeveloperName: ${ctx.authorName}`);
+  }
+
+  const cats = ctx.chumCategories?.length ? ctx.chumCategories : ["Other"];
+  lines.push("Categories:");
+  for (const cat of cats) {
+    lines.push(` - ${cat}`);
+  }
+
+  // Custom sub-section (Repo must appear here; no blank lines allowed)
+  if (ctx.repoUrl) {
+    lines.push("Custom:");
+    lines.push(`  Repo: ${ctx.repoUrl}`);
+  }
+
+  if (ctx.packageIconUrl) {
+    lines.push(`PackageIcon: ${ctx.packageIconUrl}`);
+  }
+
+  // Links sub-section
+  const homepage = ctx.repoUrl || `https://example.org/${ctx.name}`;
+  lines.push("Links:");
+  lines.push(`  Homepage: ${homepage}`);
+  if (ctx.repoUrl) {
+    lines.push(`  Bugtracker: ${ctx.repoUrl}/issues`);
+    lines.push(`  Help: ${ctx.repoUrl}/discussions`);
+  }
+  if (ctx.donationUrl) {
+    lines.push(`  Donation: ${ctx.donationUrl}`);
+  }
+
+  lines.push("%endif");
+
+  return lines.join("\n");
+}
+
+/** Returns the %description section, appending a Chum block when openSource. */
+function descriptionSection(ctx: TemplateContext): string {
+  const body = `%description\n${ctx.description}`;
+  if (!ctx.openSource) return body;
+  // Blank line separates the human-readable description from the Chum block;
+  // this is allowed — only empty lines *inside* %if…%endif are forbidden.
+  return `${body}\n\n${chumBlock(ctx)}`;
+}
+
+/** Shared spec preamble fields that vary by context. */
+function specPreamble(
+  ctx: TemplateContext,
+  extra: { buildArch?: string; extraRequires?: string[] } = {}
+): string {
+  const licenseField = ctx.license || "LICENSE";
+  const urlField = ctx.repoUrl || "http://example.org/";
+  const lines = [
+    `Name:       ${ctx.name}`,
+    "",
+    `Summary:    ${ctx.description}`,
+    "Version:    0.1",
+    "Release:    1",
+    `License:    ${licenseField}`,
+  ];
+  if (extra.buildArch) lines.push(`BuildArch:  ${extra.buildArch}`);
+  lines.push(`URL:        ${urlField}`);
+  lines.push("Source0:    %{name}-%{version}.tar.bz2");
+  lines.push("Requires:   sailfishsilica-qt5 >= 0.10.9");
+  for (const r of extra.extraRequires ?? []) lines.push(`Requires:   ${r}`);
+  return lines.join("\n");
+}
+
 // ─── RPM spec ────────────────────────────────────────────────────────────────
 
 function rpmSpec(ctx: TemplateContext): string {
-  return `Name:       ${ctx.name}
-
-Summary:    ${ctx.description}
-Version:    0.1
-Release:    1
-License:    LICENSE
-URL:        http://example.org/
-Source0:    %{name}-%{version}.tar.bz2
-Requires:   sailfishsilica-qt5 >= 0.10.9
+  return `${specPreamble(ctx)}
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Quick)
 BuildRequires:  desktop-file-utils
 
-%description
-${ctx.description}
+${descriptionSection(ctx)}
 
 
 %prep
@@ -459,15 +574,7 @@ desktop-file-install --delete-original         --dir %{buildroot}%{_datadir}/app
 // ─── RPM CMake spec ──────────────────────────────────────────────────────────
 
 function rpmCMakeSpec(ctx: TemplateContext): string {
-  return `Name:       ${ctx.name}
-
-Summary:    ${ctx.description}
-Version:    0.1
-Release:    1
-License:    LICENSE
-URL:        http://example.org/
-Source0:    %{name}-%{version}.tar.bz2
-Requires:   sailfishsilica-qt5 >= 0.10.9
+  return `${specPreamble(ctx)}
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
@@ -475,8 +582,7 @@ BuildRequires:  pkgconfig(Qt5Quick)
 BuildRequires:  desktop-file-utils
 BuildRequires:  cmake
 
-%description
-${ctx.description}
+${descriptionSection(ctx)}
 
 
 %prep
@@ -507,25 +613,14 @@ desktop-file-install --delete-original         --dir %{buildroot}%{_datadir}/app
 // ─── RPM QML spec ────────────────────────────────────────────────────────────
 
 function rpmQMLSpec(ctx: TemplateContext): string {
-  return `Name:       ${ctx.name}
-
-Summary:    ${ctx.description}
-Version:    0.1
-Release:    1
-License:    LICENSE
-BuildArch:  noarch
-URL:        http://example.org/
-Source0:    %{name}-%{version}.tar.bz2
-Requires:   sailfishsilica-qt5 >= 0.10.9
-Requires:   libsailfishapp-launcher
+  return `${specPreamble(ctx, { buildArch: "noarch", extraRequires: ["libsailfishapp-launcher"] })}
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Quick)
 BuildRequires:  desktop-file-utils
 
-%description
-${ctx.description}
+${descriptionSection(ctx)}
 
 
 %prep

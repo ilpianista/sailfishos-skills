@@ -61,6 +61,26 @@ export interface ScaffoldOptions {
   organization: string;
   authorName: string;
   authorEmail: string;
+  /** SPDX license identifier, e.g. "MIT", "GPL-3.0-or-later". Defaults to "LICENSE" placeholder. */
+  license: string;
+  /**
+   * Mark the project as open source. When true, a SailfishOS:Chum metadata
+   * block is embedded in the RPM spec's %%description section.
+   * See https://github.com/sailfishos-chum/main/blob/main/Metadata.md
+   */
+  openSource: boolean;
+  /** Source-code repository URL, e.g. "https://github.com/user/harbour-myapp". Used for Chum metadata and the spec URL field. */
+  repoUrl: string;
+  /**
+   * AppStream categories for the Chum listing.
+   * See https://specifications.freedesktop.org/menu-spec/latest/category-registry.html
+   * Defaults to ["Other"] when omitted.
+   */
+  chumCategories: string[];
+  /** URL to a package icon image (SVG preferred) for the Chum GUI. */
+  packageIconUrl: string;
+  /** Donation page URL shown in the Chum GUI. */
+  donationUrl: string;
 }
 
 /** Internal context passed to template generators */
@@ -89,6 +109,23 @@ export interface CleanOptions {
 export interface DeployOptions {
   projectDir: string;
   device: string;
+}
+
+// ─── Chum ─────────────────────────────────────────────────────────────────────
+
+export interface AddChumMetadataOptions {
+  projectDir: string;
+  /** Override the author name; auto-detected from `git config user.name` if omitted. */
+  authorName: string;
+  /**
+   * AppStream categories. Defaults to ["Other"].
+   * See https://specifications.freedesktop.org/menu-spec/latest/category-registry.html
+   */
+  categories: string[];
+  /** Override the package icon URL; auto-derived from the git remote + local icons/ directory if omitted. */
+  packageIconUrl: string;
+  /** Optional donation page URL. */
+  donationUrl: string;
 }
 
 // ─── Features ─────────────────────────────────────────────────────────────────

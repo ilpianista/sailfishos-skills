@@ -11,6 +11,7 @@ import { scaffoldProject } from "./scaffold.js";
 import { buildProject, cleanProject, deployProject } from "./build.js";
 import { getGuidelines, getPitfalls, getSnippet } from "./guidelines.js";
 import { addFeature } from "./features.js";
+import { addChumMetadata } from "./chum.js";
 
 const server = new McpServer({
   name: "sailfishos-dev",
@@ -35,12 +36,67 @@ server.tool(
       .string()
       .default("org.example")
       .describe("Reverse-domain organization prefix"),
-    authorName: z.string().default("").describe("Author name for the spec file"),
+    authorName: z
+      .string()
+      .default("")
+      .describe(
+        "Your full name for the RPM spec and changelog, e.g. Jane Dev. " +
+          "Auto-detected from `git config user.name` or the USER environment variable if omitted."
+      ),
     authorEmail: z.string().default("").describe("Author email for the spec file"),
+    license: z
+      .string()
+      .default("LICENSE")
+      .describe(
+        "SPDX license identifier used in the RPM spec License: field, e.g. MIT, GPL-3.0-or-later, BSD-3-Clause. " +
+          "Defaults to the placeholder 'LICENSE' — set a real identifier for open-source projects."
+      ),
+    openSource: z
+      .boolean()
+      .default(true)
+      .describe(
+        "When true, embed SailfishOS:Chum metadata in the RPM spec %%description so the app can be " +
+          "submitted to the Chum community repository (https://github.com/sailfishos-chum/main)."
+      ),
+    repoUrl: z
+      .string()
+      .default("")
+      .describe(
+        "Source-code repository URL, e.g. https://github.com/user/harbour-myapp. " +
+          "Auto-detected from `git remote get-url origin` in the output directory if omitted. " +
+          "Used as the RPM spec URL: field and as the Chum Repo / Homepage / Bugtracker base URL."
+      ),
+    chumCategories: z
+      .array(z.string())
+      .default([])
+      .describe(
+        "AppStream categories for the Chum listing. " +
+          "See https://specifications.freedesktop.org/menu-spec/latest/category-registry.html. " +
+          "Examples: [\"Network\"], [\"Multimedia\", \"Audio\"]. Defaults to [\"Other\"] when empty."
+      ),
+    packageIconUrl: z
+      .string()
+      .default("")
+      .describe(
+        "URL to a package icon image (SVG preferred, 172×172 px PNG as fallback) " +
+          "shown in the Chum GUI application. Leave empty to omit."
+      ),
+    donationUrl: z
+      .string()
+      .default("")
+      .describe("URL to a donation page shown in the Chum GUI. Leave empty to omit."),
   },
   async (args) => {
     try {
-      const result = await scaffoldProject(args);
+      const result = await scaffoldProject({
+        ...args,
+        license: args.license ?? "LICENSE",
+        openSource: args.openSource ?? false,
+        repoUrl: args.repoUrl ?? "",
+        chumCategories: args.chumCategories ?? [],
+        packageIconUrl: args.packageIconUrl ?? "",
+        donationUrl: args.donationUrl ?? "",
+      });
       return { content: [{ type: "text", text: result }] };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -228,6 +284,60 @@ server.tool(
   async (args) => {
     try {
       const result = await addFeature(args);
+      return { content: [{ type: "text", text: result }] };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: "text", text: `Error: ${message}` }], isError: true };
+    }
+  }
+);
+
+// ─── CHUM METADATA ───────────────────────────────────────────────────────────
+
+server.tool(
+  "sailfish_add_chum_metadata",
+  [
+    "Inject SailfishOS:Chum metadata into the RPM spec of an existing project.",
+    "Reads the License field and app name from the spec, the repository URL and",
+    "author name from git, and the icon URL from the local icons/ directory.",
+    "All values can be overridden. The metadata block is appended as the last",
+    "paragraph of %description, wrapped in %if 0%{?_chum} … %endif.",
+  ].join(" "),
+  {
+    projectDir: z
+      .string()
+      .describe("Absolute path to the existing SailfishOS project root"),
+    categories: z
+      .array(z.string())
+      .default([])
+      .describe(
+        "AppStream categories for the Chum listing. " +
+          "See https://specifications.freedesktop.org/menu-spec/latest/category-registry.html. " +
+          "Examples: [\"Network\"], [\"Multimedia\", \"Audio\"]. Defaults to [\"Other\"]."
+      ),
+    authorName: z
+      .string()
+      .default("")
+      .describe(
+        "Override the developer name shown in Chum. " +
+          "Auto-detected from `git config user.name` inside projectDir if omitted."
+      ),
+    packageIconUrl: z
+      .string()
+      .default("")
+      .describe(
+        "Override the package icon URL. " +
+          "Auto-derived from the git remote + local icons/ directory if omitted " +
+          "(e.g. https://raw.githubusercontent.com/user/harbour-foo/master/icons/harbour-foo.svg)."
+      ),
+    donationUrl: z
+      .string()
+      .default("")
+      .describe("Optional donation page URL shown in the Chum GUI."),
+  },
+  async (args) => {
+    try {
+      const result = await addChumMetadata(args);
       return { content: [{ type: "text", text: result }] };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
