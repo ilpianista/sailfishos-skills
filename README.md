@@ -14,6 +14,7 @@ An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that s
 | `sailfish_pitfalls` | List common mistakes for a development area |
 | `sailfish_snippet` | Generate ready-to-use code snippets for common patterns |
 | `sailfish_add_feature` | Add a new page, cover, service, D-Bus interface, or C++ backend |
+| `sailfish_add_chum_metadata` | Add [Chum](https://github.com/sailfishos-chum/main#readme) metadata into the RPM spec of an existing project |
 
 ## Prerequisites
 
