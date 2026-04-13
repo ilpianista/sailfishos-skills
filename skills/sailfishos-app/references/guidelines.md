@@ -450,3 +450,217 @@ sfdk rpm
 - ❌ Missing `QCoreApplication::setOrganizationName/setApplicationName` before `QSettings`
 - ❌ Not checking return values of `QFile` operations
 - ❌ Storing large user files in private app data — use `~/Downloads` or media locations
+
+---
+
+## Coding Conventions
+
+Reference: https://docs.sailfishos.org/Develop/Apps/Coding_Conventions/
+
+For platform contributions, follow the conventions of the upstream project. For Sailfish apps,
+follow Qt C++ / QML conventions with the Sailfish-specific extensions below.
+
+### C++ conventions (Qt-style)
+
+- Follow the [Qt Coding Conventions](https://wiki.qt.io/Qt_Coding_Style) as the baseline.
+- **Prefer Qt5 signal/slot connection syntax** (compile-time checked):
+  ```cpp
+  // Correct (Qt5 style)
+  connect(sender, &Sender::valueChanged, receiver, &Receiver::updateValue);
+
+  // Avoid (Qt4 string-based, no compile-time check)
+  connect(sender, SIGNAL(valueChanged(int)), receiver, SLOT(updateValue(int)));
+  ```
+- **Prefer C++11 range-for** over index-based loops:
+  ```cpp
+  for (const auto &item : items) { ... }   // correct
+  for (int i = 0; i < items.size(); ++i)  // avoid unless index is needed
+  ```
+- **Use CamelCase for namespace names** (e.g. `MyFeature`, not `my_feature`).
+- Header guards: use `#pragma once` or `#ifndef MYCLASS_H` style consistently per file.
+- One class per header/source file pair; filename matches class name.
+
+### QML conventions (Sailfish-specific)
+
+- **Omit `;` after JavaScript function lines** inside QML:
+  ```qml
+  // Correct
+  onClicked: {
+      doSomething()
+      doOther()
+  }
+
+  // Avoid
+  onClicked: {
+      doSomething();
+      doOther();
+  }
+  ```
+- **Put spaces between conditional statements, code, and curly braces**:
+  ```qml
+  if (condition) { doSomething() }   // correct
+  if(condition){doSomething()}        // avoid
+  ```
+- **Write short single-expression handlers on one line**:
+  ```qml
+  onClicked: doSomething()
+  ```
+- **Omit redundant default property assignments**:
+  ```qml
+  // Avoid — visible: true is the default
+  Label { visible: true; text: "hello" }
+
+  // Correct
+  Label { text: "hello" }
+  ```
+- **Don't define `id` if the id is never used** — it just adds clutter.
+- **Use braces even in one-line conditionals** to avoid bugs on later edits:
+  ```qml
+  if (x > 0) { doSomething() }   // correct
+  if (x > 0) doSomething()       // avoid
+  ```
+- **Group related properties** using the grouped form when available:
+  ```qml
+  font { pixelSize: Theme.fontSizeMedium; bold: true }
+  anchors { left: parent.left; right: parent.right; margins: Theme.paddingMedium }
+  ```
+- **Avoid unnecessary negatives** — prefer the positive form when both are equivalent:
+  ```qml
+  visible: ready         // correct
+  visible: !notReady     // avoid
+  ```
+- **Keep similar properties together** — id → property declarations → property bindings →
+  signal handlers → child items → states → transitions.
+- **Mark private internal properties and functions** with a leading underscore:
+  ```qml
+  property int _internalCounter: 0
+  function _resetState() { ... }
+  ```
+
+### Testing conventions
+
+- **Prefer `compare()` over `verify()`** when checking values in QML tests:
+  ```qml
+  compare(item.text, "expected")   // gives a useful diff on failure
+  verify(item.text === "expected") // only says "false"
+  ```
+- **Use `SignalSpy` instead of `wait()`** for asynchronous signal assertions:
+  ```qml
+  SignalSpy { id: spy; target: myObj; signalName: "dataChanged" }
+  spy.wait()
+  compare(spy.count, 1)
+  ```
+
+### Project and deployment conventions
+
+**Application project hierarchy:**
+```
+harbour-myapp/
+├── src/           C++ sources
+├── qml/           QML files (top-level .qml = app root)
+│   ├── pages/
+│   ├── cover/
+│   └── components/
+├── rpm/           RPM spec + changelog stubs
+├── translations/  .ts source files (compiled .qm shipped in RPM)
+├── icons/         86×86 108×108 128×128 172×172 PNG
+└── APPNAME.desktop
+```
+
+**Application deployment folders on device:**
+```
+/usr/bin/harbour-myapp               executable
+/usr/share/harbour-myapp/qml/        QML files
+/usr/share/harbour-myapp/translations/ compiled .qm files
+/usr/share/applications/harbour-myapp.desktop
+/usr/share/icons/hicolor/86x86/apps/harbour-myapp.png
+/usr/share/icons/hicolor/108x108/apps/harbour-myapp.png
+/usr/share/icons/hicolor/128x128/apps/harbour-myapp.png
+/usr/share/icons/hicolor/172x172/apps/harbour-myapp.png
+```
+
+---
+
+## Harbour Allowed APIs (extended)
+
+Full list: https://docs.sailfishos.org/Develop/Apps/Harbour/Allowed_APIs/
+Also see: https://harbour.jolla.com/faq
+
+### Allowed C/C++ libraries
+
+| Library group | Key packages |
+|---|---|
+| Qt5 Core | Qt5Core, Qt5Qml, Qt5Quick, Qt5Network, Qt5Concurrent, Qt5DBus, Qt5Multimedia, Qt5Sensors, Qt5Svg, Qt5XmlPatterns |
+| Sailfish | sailfishapp (libsailfishapp), libsailfishsilica |
+| Sailfish Secrets | sailfish-secrets, sailfish-crypto |
+| Sailfish WebView | sailfish-webengine (Gecko-based) |
+| Amber | amber-web-authorization |
+| OpenGL | libEGL, libGLESv1_CM, libGLESv2 |
+| Nemo | nemo-qml-plugin-notifications, nemo-keepalive, nemo-qml-plugin-dbus |
+| Standard C/C++ | libc, libstdc++, libm, libpthread |
+| GLib | glib-2.0 (if unavoidable) |
+| SDL2 | SDL2, SDL2_image, SDL2_mixer, SDL2_ttf |
+| BluezQt | KF5BluezQt |
+
+### Allowed QML imports
+
+| Import | Notes |
+|---|---|
+| `Sailfish.Silica 1.0` | Primary UI toolkit — always use this |
+| `Sailfish.Silica.private 1.0` | ❌ NOT allowed — private API |
+| `QtQuick 2.x` | Base QML types |
+| `QtQuick.Window 2.x` | Window management |
+| `Qt.labs.folderlistmodel 2.x` | Folder listing |
+| `QtQml.Models 2.x` | Data models |
+| `QtGraphicalEffects 1.x` | Visual effects |
+| `QtMultimedia 5.x` | Audio/video playback |
+| `QtSensors 5.x` | Hardware sensors |
+| `QtDBus 2.x` | D-Bus integration |
+| `Nemo.KeepAlive 1.2` | Background wakelock + display blanking |
+| `Nemo.Notifications 1.0` | System notifications |
+| `Nemo.DBus 2.0` | Higher-level D-Bus QML helpers |
+| `Amber.Mpris 1.0` | MPRIS media controls |
+| `Amber.Web.Authorization 1.0` | OAuth2 flows |
+| `Sailfish.WebView 1.0` | Gecko-based WebView |
+| `Sailfish.Accounts 1.0` | Accounts integration |
+| `org.nemomobile.contacts 1.0` | Contacts access |
+| `org.nemomobile.folderlistmodel 1.0` | Alternative folder model |
+| `Pyotherside 1.x` | Python ↔ QML bridge |
+
+### Disallowed QML imports (Harbour will reject)
+- `QtQuick.Controls` — use `Sailfish.Silica` instead
+- `QtQuick.Controls 2.x` — same, not whitelisted
+- Any `*.private` import
+- `com.jolla.*` — internal Jolla APIs, not stable
+
+### Harbour FAQ highlights
+- Max RPM size: **50 MB** (check current limit at https://harbour.jolla.com/faq)
+- App must be **self-contained** — do not depend on packages not in the allowed list
+- No network access during install/uninstall (`%post`, `%preun` scriptlets must be offline)
+- No `setuid`/`setgid` binaries
+- No kernel modules
+- Icon background must be transparent — the OS applies rounding and ambience tinting
+
+---
+
+## Pitfalls by Area (extended)
+
+### GitHub Actions CI pitfalls
+- ❌ Forgetting `submodules: recursive` — vendored deps won't be checked out
+- ❌ Using `@master` in production — pin to a release tag for reproducibility
+- ❌ Building only `armv7hl` — always include `aarch64` for newer devices
+- ❌ Secrets in workflow YAML — use GitHub Secrets for tokens, API keys
+
+### OBS / Chum pitfalls
+- ❌ Using a branch (not a tag/hash) as the Chum submission revision — Chum requires pinned revisions
+- ❌ License not in SPDX format — OBS rpmlint will fail the build
+- ❌ Spec `Name:` not matching OBS package name — submit will be rejected
+- ❌ Missing Chum metadata `%if 0%{?_chum}` block — package won't render correctly in Chum GUI
+- ❌ BuildRequires not available in the selected repo — add Chum path to project Meta if needed
+
+### Sailjail pitfalls (extended)
+- ❌ Shipping `Sandboxing=Disabled` — Harbour will reject; always remove before submission
+- ❌ No `[X-Sailjail]` section — app runs under a restrictive default profile (SFOS ≥ 4.4)
+- ❌ `ExecDBus=` missing when app provides a D-Bus service — auto-start won't work
+- ❌ Hardcoded paths outside auto-whitelisted dirs — use `QStandardPaths` and `OrganizationName`/`ApplicationName`
+- ❌ Tracing left enabled in shipped `.desktop` file — remove `--trace` and `--dbus-log` flags before release
