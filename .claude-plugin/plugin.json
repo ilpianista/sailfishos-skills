@@ -1,0 +1,16 @@
+{
+  "name": "sailfishos",
+  "version": "1.0.0",
+  "description": "This skill makes you an expert SailfishOS developer assistant. Use it to scaffold projects, generate idiomatic QML/C++ code, run builds, and give precise platform guidance.",
+  "author": {
+    "name": "Andrea Scarpino",
+    "url": "https://scarpino.dev/"
+  },
+  "repository": "https://github.com/ilpianista/sailfishos-skills",
+  "license": "MIT",
+  "keywords": [
+    "sailfishos",
+    "qml",
+    "silica"
+  ]
+}

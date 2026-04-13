@@ -1,206 +1,46 @@
-# SailfishOS MCP for OpenCode
+Agent Skills for use with SailfishOS.
 
-An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that supercharges [OpenCode](https://opencode.ai) with SailfishOS application development capabilities.
-
-## Features
-
-| Tool | What it does |
-|------|-------------|
-| `sailfish_create_project` | Scaffold a complete SailfishOS project (CMake, RPM spec, QML, icons, translations) |
-| `sailfish_build` | Build the project with `sfdk` and produce an RPM |
-| `sailfish_clean` | Clean the build directory |
-| `sailfish_deploy` | Deploy the RPM to a connected device or emulator |
-| `sailfish_guidelines` | Return curated guidelines for any SailfishOS topic |
-| `sailfish_pitfalls` | List common mistakes for a development area |
-| `sailfish_snippet` | Generate ready-to-use code snippets for common patterns |
-| `sailfish_add_feature` | Add a new page, cover, service, D-Bus interface, or C++ backend |
-| `sailfish_add_chum_metadata` | Add [Chum](https://github.com/sailfishos-chum/main#readme) metadata into the RPM spec of an existing project |
-
-## Prerequisites
-
-- [TypeScript](https://www.typescriptlang.org/)
-- [Sailfish SDK](https://docs.sailfishos.org/Tools/Sailfish_SDK/Installation/) with `sfdk` in your PATH (required for build/deploy tools)
-- [OpenCode](https://opencode.ai)
+These skills follow the [Agent Skills specification](https://agentskills.io/specification) so they can be used by any skills-compatible agent, including Claude Code and Codex CLI.
 
 ## Installation
 
-```bash
-git clone https://github.com/ilpianista/sailfishos-mcp
-cd sailfishos-mcp
-npm install
-npm run build
-```
-
-## Configuring OpenCode
-
-Add this server to your OpenCode configuration file (`~/.config/opencode/config.json` or the project-local `.opencode/config.json`):
-
-```json
-{
-  "mcp": {
-    "sailfishos": {
-      "type": "local",
-      "command": [
-        "node",
-        "/absolute/path/to/sailfishos-mcp/dist/index.js"
-      ],
-      "enabled": true
-    }
-  }
-}
-```
-
-Restart OpenCode — the SailfishOS tools will be available immediately.
-
----
-
-## Usage Examples
-
-### 1. Bootstrap a new app
-
-> *"Create a new SailfishOS app called my-notes in ~/Projects. It's a simple note-taking app."*
-
-OpenCode will call `sailfish_create_project` and produce:
+### Marketplace
 
 ```
-~/Projects/harbour-my-notes/
-├── CMakeLists.txt
-├── rpm/
-│   ├── harbour-my-notes.changes.in
-│   ├── harbour-my-notes.changes.run.in
-│   └── harbour-my-notes.spec
-├── src/
-│   └── main.cpp
-├── qml/
-│   ├── harbour-my-notes.qml
-│   ├── pages/
-│   │   ├── FirstPage.qml
-│   │   └── SecondPage.qml
-│   └── cover/
-│       └── CoverPage.qml
-├── icons/  (86, 108, 128, 172 px stubs)
-└── translations/harbour-my-notes.ts
-└── harbour-my-notes.desktop
+/plugin marketplace add ilpianista/sailfishos-skills
+/plugin install ilpianista@sailfishos-skills
 ```
 
-### 2. Build the project
-
-> *"Build my SailfishOS project at ~/Projects/harbour-my-notes for armv7hl"*
-
-Runs:
-```bash
-sfdk config target SailfishOS-4.5.0.18-armv7hl
-sfdk cmake -B build -S .
-sfdk cmake --build build
-sfdk rpm
-```
-
-### 3. Add a feature
-
-> *"Add a detail page called NoteDetailPage to my project"*
-
-Creates `qml/pages/NoteDetailPage.qml` with correct Silica boilerplate and explains how to navigate to it.
-
-### 4. Get guidelines
-
-> *"What are the Harbour submission requirements for icons?"*
-
-Calls `sailfish_guidelines({ topic: "harbour-validation" })`.
-
-### 5. Avoid pitfalls
-
-> *"What are common QML mistakes on SailfishOS?"*
-
-Calls `sailfish_pitfalls({ area: "qml" })` and returns an annotated list of anti-patterns.
-
-### 6. Snippets on demand
-
-> *"Show me how to do a pull-down menu in SailfishOS QML"*
-
-Calls `sailfish_snippet({ pattern: "page-with-pulley", language: "qml" })`.
-
----
-
-## Available Templates
-
-| Template | Description |
-|----------|-------------|
-| `qmlOnlyTemplate` | Sailfish OS Qt Quick Application (QML Only) |
-| `qmake` | Sailfish OS Qt Quick Application as QMake project |
-| `cmake` | Sailfish OS Qt Quick Application as CMake project |
-
-## Available Snippets
-
-`page-with-pulley`, `list-view-delegate`, `cover-page`, `settings-page`, `dbus-interface`, `background-service`, `notification`, `file-picker`, `share-picker`, `theme-aware-colors`, `keep-alive`, `remorse-item`, `section-header`, `search-field`
-
-## Available Guidelines Topics
-
-`harbour-validation`, `ui-components`, `navigation`, `theming`, `permissions`, `dbus`, `background-services`, `notifications`, `covers`, `sailfishsilica`, `cmake`, `rpm-spec`, `general`, `ux-guidelines`
-
----
-
-## Sailfish SDK Quick Reference
-
-```bash
-# List available build targets
-sfdk tools list
-
-# Set active target
-sfdk config target SailfishOS-4.5.0.18-armv7hl
-
-# Configure and build
-sfdk cmake -B build -S .
-sfdk cmake --build build
-
-# Package as RPM
-sfdk rpm
-
-# List connected devices
-sfdk device list
-
-# Set active device
-sfdk config device "Xperia 10 III"
-
-# Deploy to device
-sfdk deploy --sdk
-
-# Open a shell inside the build engine
-sfdk build-shell
-```
-
----
-
-## Project Structure Conventions
-
-SailfishOS / Harbour apps follow strict conventions:
+### npx skills
 
 ```
-harbour-appname/          ← Must start with "harbour-"
-├── CMakeLists.txt
-├── rpm/
-│   ├── harbour-appname.spec              ← RPM packaging
-│   ├── harbour-appname.changes.in        ← Changelog file
-│   └── harbour-appname.changes.run.in    ← Changelog script file
-├── src/
-│   └── main.cpp               ← Uses SailfishApp::main()
-├── qml/
-│   ├── harbour-appname.qml    ← ApplicationWindow root
-│   ├── pages/
-│   └── cover/
-├── icons/
-│   ├── 86x86/harbour-appname.png
-│   ├── 108x108/harbour-appname.png
-│   ├── 128x128/harbour-appname.png
-│   └── 172x172/harbour-appname.png
-├── translations/
-│   └── harbour-appname.ts
-└── harbour-appname.desktop
+npx skills add git@github.com:ilpianista/sailfishos-skills.git
 ```
 
-## Donate
+### Manually
 
-[![Liberapay receiving](https://img.shields.io/liberapay/receives/ilpianista?logo=liberapay&label=ilpianista)](https://liberapay.com/ilpianista)
+#### Claude Code
 
-## License
+Add the contents of this repo to a `/.claude` folder in the root of your SailfisOS project (or whichever folder you're using with Claude Code). See more in the [official Claude Skills documentation](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview).
 
-MIT
+#### Codex CLI
+
+Copy the `skills/` directory into your Codex skills path (typically `~/.codex/skills`). See the [Agent Skills specification](https://agentskills.io/specification) for the standard skill format.
+
+#### OpenCode
+
+Clone the entire repo into the OpenCode skills directory (`~/.opencode/skills/`):
+
+```sh
+git clone https://github.com/ilpianista/sailfishos-skills.git ~/.opencode/skills/sailfishos-skills
+```
+
+Do not copy only the inner `skills/` folder — clone the full repo so the directory structure is `~/.opencode/skills/sailfishos-skills/skills/<skill-name>/SKILL.md`.
+
+OpenCode auto-discovers all `SKILL.md` files under `~/.opencode/skills/`. No changes to `opencode.json` or any config file are needed. Skills become available after restarting OpenCode.
+
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| [sailfishos-app](skills/sailfishos-app) | This skill makes you an expert [SailfishOS](https://sailfishos.org/) developer assistant. Use it to scaffold projects, generate idiomatic QML/C++ code, run builds, and give precise platform guidance. |

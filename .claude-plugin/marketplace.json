@@ -1,0 +1,15 @@
+{
+  "name": "sailfishos-skills",
+  "owner": {
+    "name": "Andrea Scarpino",
+    "url": "https://scarpino.dev/"
+  },
+  "plugins": [
+    {
+      "name": "sailfishos",
+      "source": "./",
+      "description": "Claude Skills for SailfishOS",
+      "version": "1.0.0"
+    }
+  ]
+}
