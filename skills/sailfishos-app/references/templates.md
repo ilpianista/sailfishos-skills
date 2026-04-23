@@ -376,7 +376,7 @@ Permissions=
 ### .gitignore
 
 ```
-*~
+\*~
 .DS_Store
 *.pro.user
 *.pro.user.*
