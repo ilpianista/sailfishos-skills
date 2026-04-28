@@ -31,6 +31,7 @@ and give precise platform guidance.
 | Submit to Chum store | [Chum submission](#chum-submission-via-obs) |
 | Add Chum metadata to spec | [Add Chum metadata](#adding-chum-metadata) |
 | Debug Sailjail permissions | [Sailjail debugging](#debugging-sailjail-permissions) |
+| Add backup support to app | [X-HarbourBackup](#x-harbourbackup-backup-integration) |
 | Ask about coding conventions | Load `references/guidelines.md` → Coding Conventions |
 | Ask about UI patterns, APIs, permissions | Load `references/guidelines.md` |
 | See code for a common pattern | Load `references/snippets.md` |
@@ -449,6 +450,45 @@ Sailjail auto-whitelists three directories based on `[X-Sailjail]` values — th
 - ❌ Arbitrary `~/<CustomDir>` inaccessible → only predefined XDG dirs have tokens; others need `Sandboxing=Disabled` (not Harbour-allowed)
 - ❌ `OrganizationName`/`ApplicationName` typo → private dirs not whitelisted; app can't save config
 - ❌ `ExecDBus=` missing → app won't auto-start as a D-Bus service for `AppLaunch` pattern
+
+---
+
+## X-HarbourBackup (backup integration)
+
+Allows SailfishOS apps to declare files and dconf keys for inclusion in system backups.
+Requires Sailfish OS 3.2+ and the `harbour-mybackup` app installed.
+
+Add an `[X-HarbourBackup]` section to your app's `.desktop` file:
+
+```ini
+[X-HarbourBackup]
+BackupPathList=.local/share/harbour-myapp/:Documents/MyApp/
+BackupConfigList=/apps/harbour-myapp/
+```
+
+### Properties
+
+| Property | Description |
+|---|---|
+| `BackupPathList` | Colon-separated list of files/directories relative to home (`~`). Directories end with `/` and are copied recursively. Absolute paths are ignored. |
+| `BackupConfigList` | Colon-separated list of dconf keys/groups. Groups end with `/` and are saved/restored recursively. |
+
+### Important behavior
+
+- **dconf restore replaces existing data** — the existing contents of dconf groups is **lost** during restore and completely replaced by the backup
+- Paths are relative to `~` (home directory)
+- Directory paths must end with `/` to be recognized as directories
+- Group paths in `BackupConfigList` must end with `/` to be treated as groups
+
+### Example for a typical app
+
+```ini
+[X-HarbourBackup]
+BackupPathList=.local/share/harbour-myapp/:Pictures/MyApp/
+BackupConfigList=/apps/harbour-myapp/
+```
+
+Reference: https://github.com/monich/harbour-mybackup
 
 ---
 
